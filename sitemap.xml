@@ -1,47 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://socketspec.dev/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/quickstart/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/quickstart/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/contributing/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/contributing/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/contributing/new-adapter/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/contributing/new-adapter/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/how-to/fastapi/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/fastapi/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/how-to/testing/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/testing/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/reference/connection/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/reference/connection/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/reference/socketapp/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/reference/socketapp/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/tutorial/first-event/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/tutorial/first-event/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/tutorial/payload-validation/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/tutorial/payload-validation/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
     <url>
-         <loc>https://socketspec.dev/tutorial/rooms/</loc>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/tutorial/rooms/</loc>
          <lastmod>2026-06-27</lastmod>
     </url>
 </urlset>
