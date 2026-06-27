@@ -1,6 +1,6 @@
 site_name: SocketSpec
 site_description: FastAPI-style WebSocket framework with built-in docs and testing
-site_url: https://socketspec.dev
+site_url: https://ByteCraftByLaiba.github.io/socketspec/
 repo_url: https://github.com/ByteCraftByLaiba/socketspec
 repo_name: ByteCraftByLaiba/socketspec
 edit_uri: edit/main/docs/
@@ -36,7 +36,7 @@ theme:
     text: Inter
     code: JetBrains Mono
   logo: assets/logo.svg
-  favicon: assets/favicon.png
+  favicon: assets/logo.svg
 
 plugins:
   - search

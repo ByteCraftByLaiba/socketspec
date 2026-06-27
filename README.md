@@ -123,7 +123,7 @@ async def test_send_message():
 
 ## Links
 
-- [Documentation](https://socketspec.dev)
+- [Documentation](https://ByteCraftByLaiba.github.io/socketspec/)
 - [GitHub](https://github.com/ByteCraftByLaiba/socketspec)
 - [PyPI](https://pypi.org/project/socketspec/)
 - [Changelog](CHANGELOG.md)
