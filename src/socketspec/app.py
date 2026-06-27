@@ -20,6 +20,7 @@ Does NOT own raw WebSocket transport or framework-specific adapters.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
@@ -70,6 +71,8 @@ class SocketApp:
         session: SessionConfig | None = None,
         rooms: list[Room] | None = None,
         namespace: str = "/",
+        debug: bool = False,
+        debug_url: str = "/socket-debug",
     ) -> None:
         origins = allowed_origins if allowed_origins is not None else ["*"]
         self._namespace = namespace
@@ -88,6 +91,11 @@ class SocketApp:
         self._docs = docs
         self._docs_url = docs_url
         self._docs_access_token = docs_access_token
+        self._debug = debug
+        self._debug_url = debug_url
+        self._debug_queue: asyncio.Queue[dict[str, Any]] | None = (
+            asyncio.Queue(maxsize=500) if debug else None
+        )
         self._lifecycle_hooks: dict[str, list[LifecycleHook]] = {
             "connect": [],
             "disconnect": [],
@@ -217,6 +225,12 @@ class SocketApp:
             await hook(conn)
 
         logger.info("Connection %s established", conn.id)
+        self._debug_log({
+            "type": "connect",
+            "conn_id": conn.id,
+            "user_id": conn.identity.user_id,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
         return conn
 
     async def handle_event(
@@ -265,6 +279,13 @@ class SocketApp:
             self._session_mgr.signal_pong(conn.id)
             return
 
+        self._debug_log({
+            "type": "event",
+            "conn_id": conn.id,
+            "event": event,
+            "payload_size": size,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
         await self._compiled_chain(conn, event, payload)
 
     async def handle_disconnect(
@@ -290,6 +311,12 @@ class SocketApp:
 
         await self._router.cleanup(conn.id)
         logger.info("Connection %s disconnected: %s", conn.id, reason)
+        self._debug_log({
+            "type": "disconnect",
+            "conn_id": conn.id,
+            "reason": reason,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
 
     def _startup_validate(self) -> None:
         """Run startup validation and compile middleware before serving."""
@@ -305,6 +332,19 @@ class SocketApp:
     async def _run_room_join_hooks(self, conn: Connection, room: str) -> None:
         for hook in self._lifecycle_hooks["room_join"]:
             await hook(conn, room)
+
+    def _debug_log(self, entry: dict[str, Any]) -> None:
+        """Append a debug log entry to the queue. No-op when debug=False."""
+        if self._debug_queue is None:
+            return
+        try:
+            self._debug_queue.put_nowait(entry)
+        except asyncio.QueueFull:
+            try:
+                self._debug_queue.get_nowait()  # discard oldest
+                self._debug_queue.put_nowait(entry)
+            except Exception:  # noqa: BLE001
+                pass
 
     def _build_backend(
         self,

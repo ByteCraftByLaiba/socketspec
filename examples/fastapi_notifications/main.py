@@ -1,33 +1,29 @@
 # Copyright (c) 2025 Laiba Shahab. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed under the Apache License, Version 2.0
 
 """FastAPI server-to-client notification broadcast example.
 
-Demonstrates: pushing notifications from an HTTP endpoint to all connected
-WebSocket clients or a specific user, without the client sending an event first.
+Demonstrates: subscribe/unsubscribe to topics, broadcast_all,
+broadcast_except (all but sender), and direct emit to sender only.
 
 Run:
     pip install socketspec[fastapi]
     uvicorn examples.fastapi_notifications.main:app --reload
 
-Trigger a broadcast:
-    curl -X POST http://localhost:8000/notify/all \
-         -H "Content-Type: application/json" \
-         -d '{"title": "Maintenance", "body": "Server restart in 5 minutes"}'
+Trigger notifications via HTTP:
+    # Broadcast to all connected clients
+    curl -X POST http://localhost:8000/notify/all \\
+         -H "Content-Type: application/json" \\
+         -d '{"title": "System Alert", "body": "Maintenance in 5 min"}'
+
+    # Broadcast to a specific topic's subscribers
+    curl -X POST http://localhost:8000/notify/alerts \\
+         -H "Content-Type: application/json" \\
+         -d '{"title": "Security", "body": "Please update your password"}'
 
 Open:
-    http://localhost:8000/socket-docs   — connect and watch notifications arrive
+    http://localhost:8000/socket-docs    -- connect and watch notifications
+    http://localhost:8000/socket-debug   -- live event log
 """
 
 from __future__ import annotations
@@ -45,13 +41,13 @@ logger = logging.getLogger(__name__)
 
 # ─── App setup ────────────────────────────────────────────────────────────────
 
-socket = SocketApp(docs=True)
+socket = SocketApp(docs=True, debug=True)
 
 # ─── Payload / request models ─────────────────────────────────────────────────
 
 
 class SubscribePayload(BaseModel):
-    topic: str  # e.g. "alerts", "news", "orders"
+    topic: str
 
 
 class NotifyRequest(BaseModel):
@@ -64,11 +60,11 @@ class NotifyRequest(BaseModel):
 
 @socket.on(
     "subscribe",
-    description="Subscribe to a notification topic.",
+    description="Subscribe to a named notification topic.",
     tags=["notifications"],
 )
 async def subscribe(conn: Connection, payload: SubscribePayload) -> None:
-    """Add the connection to a topic room."""
+    """Add the connection to the topic room."""
     room = f"topic:{payload.topic}"
     await socket.rooms.join(conn, room)
     await conn.emit("subscribed", {"topic": payload.topic})
@@ -81,10 +77,51 @@ async def subscribe(conn: Connection, payload: SubscribePayload) -> None:
     tags=["notifications"],
 )
 async def unsubscribe(conn: Connection, payload: SubscribePayload) -> None:
-    """Remove the connection from a topic room."""
+    """Remove the connection from the topic room."""
     room = f"topic:{payload.topic}"
     await socket.rooms.leave(conn, room)
     await conn.emit("unsubscribed", {"topic": payload.topic})
+
+
+@socket.on(
+    "broadcast_all",
+    description="Send a notification to every connected client (admin demo).",
+    tags=["notifications"],
+)
+async def broadcast_all_event(conn: Connection, payload: NotifyRequest) -> None:
+    """Broadcast a message to everyone in the global topic."""
+    await socket.rooms.broadcast(
+        "topic:global",
+        "notification",
+        {"title": payload.title, "body": payload.body, "topic": "global"},
+    )
+    await conn.emit("broadcast_sent", {"count": "all"})
+
+
+@socket.on(
+    "broadcast_except",
+    description="Broadcast to all clients except the sender.",
+    tags=["notifications"],
+)
+async def broadcast_except_event(conn: Connection, payload: NotifyRequest) -> None:
+    """Broadcast to everyone in global topic, excluding the sender."""
+    await socket.rooms.broadcast(
+        "topic:global",
+        "notification",
+        {"title": payload.title, "body": payload.body, "topic": "global"},
+        exclude={conn.id},
+    )
+    await conn.emit("broadcast_sent", {"count": "all_except_self"})
+
+
+@socket.on(
+    "direct_message",
+    description="Send a notification only to the requesting client.",
+    tags=["notifications"],
+)
+async def direct_message(conn: Connection, payload: NotifyRequest) -> None:
+    """Emit a notification back exclusively to the sender."""
+    await conn.emit("notification", {"title": payload.title, "body": payload.body, "topic": "direct"})
 
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -92,18 +129,18 @@ async def unsubscribe(conn: Connection, payload: SubscribePayload) -> None:
 
 @socket.on_connect
 async def on_connect(conn: Connection) -> None:
-    """Auto-subscribe every connection to the "global" topic."""
+    """Auto-subscribe every connection to the global topic."""
     await socket.rooms.join(conn, "topic:global")
     await conn.emit("welcome", {"conn_id": conn.id})
     logger.info("Connection %s connected", conn.id)
 
 
-# ─── FastAPI HTTP endpoints to push notifications ─────────────────────────────
+# ─── FastAPI app + HTTP push endpoints ────────────────────────────────────────
 
 app = FastAPI(
     title="SocketSpec Notifications Example",
     description="Server-push notifications via WebSocket.",
-    version="0.1.0",
+    version="0.1.1",
 )
 
 mount(socket, app, path="/ws")
@@ -122,7 +159,7 @@ async def notify_all(request: NotifyRequest) -> dict[str, str]:
 
 @app.post("/notify/{topic}", summary="Broadcast to subscribers of a topic")
 async def notify_topic(topic: str, request: NotifyRequest) -> dict[str, str]:
-    """Push a notification to all subscribers of a specific topic."""
+    """Push a notification to subscribers of a specific topic."""
     room = f"topic:{topic}"
     try:
         await socket.rooms.broadcast(
@@ -132,7 +169,6 @@ async def notify_topic(topic: str, request: NotifyRequest) -> dict[str, str]:
         )
     except Exception as exc:
         raise HTTPException(status_code=404, detail=f"Topic '{topic}' not found or empty") from exc
-
     return {"status": "sent", "topic": topic}
 
 

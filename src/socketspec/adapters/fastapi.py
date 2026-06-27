@@ -93,6 +93,10 @@ def mount(
     if socket_app._docs:
         mount_docs(app, socket_app)
 
+    if socket_app._debug:
+        from socketspec.docs.debug_router import mount_debug  # noqa: PLC0415
+        mount_debug(app, socket_app)
+
 
 class FastAPISocketWrapper:
     """Normalizes FastAPI WebSocket to the RawSocket interface."""
