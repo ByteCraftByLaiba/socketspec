@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SocketSpec interactive WebSocket event browser — try events, inspect payloads, and view live responses." />
+  <title>SocketSpec Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>{{INLINE_CSS}}</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>SocketSpec</h1>
+      <span id="version" class="version"></span>
+    </div>
+    <div class="controls">
+      <label class="ws-url-label">
+        <span>WebSocket URL</span>
+        <input id="ws-url" type="text" value="ws://localhost:8000/ws" />
+      </label>
+      <button id="connect-btn" type="button">Connect</button>
+      <button id="auth-btn" type="button">Authorize</button>
+    </div>
+  </header>
+
+  <div class="status-bar" id="status-bar">
+    <div class="status-indicator">
+      <div class="status-dot disconnected" id="status-dot"></div>
+      <span id="status-text">Disconnected</span>
+    </div>
+    <span class="conn-id" id="conn-id-display"></span>
+    <span class="conn-hint" id="conn-hint"></span>
+  </div>
+
+  <main class="layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <section id="content" class="content"></section>
+  </main>
+
+  <footer class="log-drawer">
+    <div class="log-header">
+      <strong>Live Log</strong>
+      <input id="log-filter" type="text" placeholder="Filter events…" />
+      <button id="clear-log" type="button">Clear</button>
+    </div>
+    <div id="log-output"></div>
+  </footer>
+
+  <dialog id="auth-modal">
+    <form method="dialog">
+      <h2>Authorize</h2>
+      <label>
+        <span>JWT / Bearer Token</span>
+        <input id="auth-token" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" />
+      </label>
+      <label>
+        <span>API Key</span>
+        <input id="auth-api-key" type="text" placeholder="x-api-key value" />
+      </label>
+      <menu>
+        <button value="cancel" type="submit" class="cancel-btn">Cancel</button>
+        <button id="auth-save" value="default" type="submit" class="send-btn">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script>{{INLINE_JS}}</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+site_name: SocketSpec
+site_description: FastAPI-style WebSocket framework with built-in docs and testing
+site_url: https://socketspec.dev
+repo_url: https://github.com/ByteCraftByLaiba/socketspec
+repo_name: ByteCraftByLaiba/socketspec
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  font:
+    text: Inter
+    code: JetBrains Mono
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: false
+            heading_level: 2
+            docstring_style: google
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Tutorial:
+    - First Event: tutorial/first-event.md
+    - Payload Validation: tutorial/payload-validation.md
+    - Rooms: tutorial/rooms.md
+  - How-to Guides:
+    - FastAPI: how-to/fastapi.md
+    - Testing: how-to/testing.md
+  - API Reference:
+    - SocketApp: reference/socketapp.md
+    - Connection: reference/connection.md
+  - Contributing:
+    - Overview: contributing/index.md
+    - Writing a New Adapter: contributing/new-adapter.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ByteCraftByLaiba/socketspec
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/socketspec/
+  version:
+    provider: mike

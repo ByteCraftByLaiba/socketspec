@@ -1,0 +1,61 @@
+name: Feature Request
+description: Propose a new feature or enhancement for SocketSpec
+title: "[feature]: "
+labels: ["enhancement", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement!
+        The more context you provide, the easier it is to evaluate and prioritise.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or pain point you're experiencing.
+      placeholder: "I often need to send a one-off message to a single connection from outside the event handler, but there's no clean API for that today..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work? Code examples help a lot.
+      render: python
+      placeholder: |
+        # Something like:
+        await socket.manager.emit_to("conn_id_abc", "notification", {"text": "hello"})
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds are you using today?
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Which roadmap phase does this fit?
+      options:
+        - v0.2.0 — Adapters
+        - v0.3.0 — Scale
+        - v0.4.0 — Observability
+        - v0.5.0 — Developer Experience
+        - New phase / not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have read the ROADMAP.md to check if this is already planned
+          required: true

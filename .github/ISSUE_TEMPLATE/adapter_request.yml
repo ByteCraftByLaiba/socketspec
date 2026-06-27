@@ -1,0 +1,55 @@
+name: Adapter Request
+description: Request support for a new web framework adapter
+title: "[adapter]: "
+labels: ["adapter", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SocketSpec currently ships a FastAPI adapter.
+        Use this template to request official support for another framework.
+
+  - type: input
+    id: framework
+    attributes:
+      label: Framework name and version
+      placeholder: "Litestar >= 2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: pypi
+    attributes:
+      label: PyPI package name
+      placeholder: "litestar"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why do you need this adapter?
+      description: Describe your use case and why you can't use the existing FastAPI adapter.
+      placeholder: "My team is standardising on Litestar for its dependency injection model..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: websocket_api
+    attributes:
+      label: WebSocket API in this framework
+      description: |
+        Link to or paste the framework's WebSocket documentation.
+        This helps us understand how to implement the RawSocket protocol.
+      placeholder: "https://docs.litestar.dev/latest/usage/websockets.html"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to implement this adapter myself with maintainer guidance
+        - label: I can provide a test environment or example app for the adapter

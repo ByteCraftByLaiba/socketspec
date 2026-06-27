@@ -1,0 +1,112 @@
+name: Bug Report
+description: Report a reproducible bug in SocketSpec
+title: "[bug]: "
+labels: ["bug", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug!
+        Please fill in as much detail as possible so we can reproduce and fix it quickly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I call socket.rooms.join() with a room pattern that has variables, the guard is never called..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: |
+        Paste a minimal code snippet that reproduces the issue.
+        The smaller, the better.
+      render: python
+      placeholder: |
+        from socketspec import SocketApp
+
+        socket = SocketApp(docs=True)
+
+        @socket.room_guard("chat:{room_id}")
+        async def guard(conn, room_id: str) -> bool:
+            return True  # never called?
+
+        @socket.on("join")
+        async def join(conn, payload):
+            await socket.rooms.join(conn, f"chat:{payload['room']}")
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      placeholder: The guard should be called before the connection is allowed to join the room.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      placeholder: The guard is skipped and the connection joins without permission check.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SocketSpec version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: python
+    attributes:
+      label: Python version
+      options:
+        - "3.10"
+        - "3.11"
+        - "3.12"
+        - "3.13"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter used
+      options:
+        - FastAPI
+        - Starlette
+        - Django
+        - Quart
+        - None / direct
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Traceback / error output
+      description: Paste the full traceback if one was produced.
+      render: text
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I am using the latest released version of SocketSpec
+          required: true
+        - label: I have included a minimal reproduction
+          required: true
