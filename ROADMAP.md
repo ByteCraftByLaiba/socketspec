@@ -59,9 +59,7 @@ Production visibility without manual instrumentation.
 - **Health endpoint** — `/socket-health` returning backend status and
   active connection count
 
----
-
-## 🔜 v0.5.0 — Developer Experience
+## v0.5.0 — Developer Experience
 
 - **Multi-client docs panel** — connect as multiple users simultaneously in
   the docs UI; see broadcasts delivered to all tabs in real time
@@ -70,18 +68,6 @@ Production visibility without manual instrumentation.
   the event schema as JSON or YAML
 - **VS Code extension** — IntelliSense for `@socket.on()` event names and
   payload types
-
----
-
-## Community Milestones
-
-These are delivered by community contributors with maintainer review:
-
-| Milestone | Description |
-|---|---|
-| Community sync adapter | Synchronous Django view support |
-| AWS Lambda adapter | WebSocket API Gateway integration |
-| Strawberry GraphQL subscriptions | Thin bridge over SocketSpec rooms |
 
 ---
 
