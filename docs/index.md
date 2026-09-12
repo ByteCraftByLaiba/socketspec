@@ -93,24 +93,24 @@ Requires Python 3.10 or later.
 
     Set up SocketSpec in your project with the right extras for your framework.
 
-    [:octicons-arrow-right-24: Installation Guide](getting-started/installation.md)
+    [Installation Guide ->](getting-started/installation.md)
 
 -   **Quickstart**
 
     Build and test a working WebSocket API in under five minutes.
 
-    [:octicons-arrow-right-24: Quickstart](getting-started/quickstart.md)
+    [Quickstart Guide ->](getting-started/quickstart.md)
 
 -   **Interactive Documentation**
 
     Learn how to use the built-in `/socket-docs` UI to test events from your browser.
 
-    [:octicons-arrow-right-24: Interactive Docs Guide](how-to/interactive-docs.md)
+    [Interactive Docs Guide ->](how-to/interactive-docs.md)
 
 -   **Architecture**
 
     Understand the request lifecycle, component design, and extension points.
 
-    [:octicons-arrow-right-24: Architecture Overview](concepts/architecture.md)
+    [Architecture Overview ->](concepts/architecture.md)
 
 </div>
