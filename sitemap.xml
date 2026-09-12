@@ -2,46 +2,86 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
-         <loc>https://ByteCraftByLaiba.github.io/socketspec/quickstart/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/changelog/</loc>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/concepts/architecture/</loc>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/concepts/wire-protocol/</loc>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/contributing/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/contributing/new-adapter/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/getting-started/installation/</loc>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/getting-started/quickstart/</loc>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/dependency-injection/</loc>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/fastapi/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/interactive-docs/</loc>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/middleware/</loc>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/security/</loc>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/how-to/testing/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/reference/connection/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/reference/errors/</loc>
+         <lastmod>2026-09-12</lastmod>
+    </url>
+    <url>
+         <loc>https://ByteCraftByLaiba.github.io/socketspec/reference/security/</loc>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/reference/socketapp/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/tutorial/first-event/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/tutorial/payload-validation/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
     </url>
     <url>
          <loc>https://ByteCraftByLaiba.github.io/socketspec/tutorial/rooms/</loc>
-         <lastmod>2026-06-27</lastmod>
+         <lastmod>2026-09-12</lastmod>
     </url>
 </urlset>
