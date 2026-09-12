@@ -121,7 +121,10 @@ async def broadcast_except_event(conn: Connection, payload: NotifyRequest) -> No
 )
 async def direct_message(conn: Connection, payload: NotifyRequest) -> None:
     """Emit a notification back exclusively to the sender."""
-    await conn.emit("notification", {"title": payload.title, "body": payload.body, "topic": "direct"})
+    await conn.emit(
+        "notification",
+        {"title": payload.title, "body": payload.body, "topic": "direct"},
+    )
 
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -168,7 +171,9 @@ async def notify_topic(topic: str, request: NotifyRequest) -> dict[str, str]:
             {"title": request.title, "body": request.body, "topic": topic},
         )
     except Exception as exc:
-        raise HTTPException(status_code=404, detail=f"Topic '{topic}' not found or empty") from exc
+        raise HTTPException(
+            status_code=404, detail=f"Topic '{topic}' not found or empty"
+        ) from exc
     return {"status": "sent", "topic": topic}
 
 

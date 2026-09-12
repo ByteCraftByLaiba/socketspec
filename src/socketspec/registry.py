@@ -112,9 +112,16 @@ class EventRegistry:
         return list(self._events.values())
 
     def validate(self) -> None:
-        """Run startup validations before the server accepts connections.
+        """Mark the registry as validated at startup.
 
-        Raises:
-            StartupValidationError: If cross-event validation fails.
+        This method is called by ``SocketApp._startup_validate()`` before the
+        server begins accepting connections. It sets the internal
+        ``_validated`` flag so that post-startup registration attempts are
+        rejected.
+
+        Note:
+            Cross-event validation (e.g., verifying that ``emits`` references
+            exist) is planned for a future release. Currently this method only
+            sets the validated flag.
         """
         self._validated = True

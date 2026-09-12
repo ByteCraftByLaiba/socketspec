@@ -1,72 +1,116 @@
 # SocketSpec
 
-**FastAPI-style WebSocket framework with built-in interactive docs and testing.**
+**A type-safe, decorator-driven WebSocket framework for Python.**
+
+Build production WebSocket APIs with the same patterns you already know from FastAPI -- decorators, Pydantic models, dependency injection, middleware -- and get interactive documentation for free.
 
 ---
 
-## What is SocketSpec?
+## The Problem
 
-SocketSpec lets you build production WebSocket APIs the same way you build FastAPI
-HTTP APIs — with decorators, Pydantic models, dependency injection, and automatic
-interactive documentation.
+WebSocket development in Python is fragmented. You write raw message loops, manually validate JSON payloads, build ad-hoc room management, and have no way for frontend teams to explore and test your events without writing custom client code. Every project reinvents the same plumbing.
+
+## The Solution
+
+SocketSpec provides a structured, opinionated framework that treats WebSocket events as first-class API endpoints:
 
 ```python
 from fastapi import FastAPI
-from pydantic import BaseModel
-from socketspec import SocketApp
+from pydantic import BaseModel, Field
+from socketspec import SocketApp, Connection
 from socketspec.adapters.fastapi import mount
 
 socket = SocketApp(docs=True)
 
 class ChatMessage(BaseModel):
-    room: str
-    text: str
+    room: str = Field(min_length=1, max_length=64)
+    text: str = Field(min_length=1, max_length=500)
 
-@socket.on("send_message", tags=["chat"])
-async def send_message(conn, payload: ChatMessage) -> None:
-    await socket.rooms.broadcast(f"chat:{payload.room}", "new_message", {
-        "from": conn.id,
-        "text": payload.text,
-    })
+@socket.on("send_message", tags=["chat"], description="Send a message to a chat room.")
+async def send_message(conn: Connection, payload: ChatMessage) -> None:
+    await socket.rooms.broadcast(
+        f"chat:{payload.room}",
+        "new_message",
+        {"from": conn.id, "text": payload.text},
+    )
 
 app = FastAPI()
 mount(socket, app, path="/ws")
 ```
 
-Open `/socket-docs` and you immediately get an interactive event browser — no
-Swagger YAML, no manual schema writing.
+Start the server, open `/socket-docs`, and every registered event is browsable, testable, and documented -- no Swagger YAML, no manual schema writing.
 
 ---
 
-## Features at a Glance
+## Key Capabilities
 
-| Feature | Notes |
+| Capability | Description |
 |---|---|
-| Decorator-based event handlers | `@socket.on("event_name")` |
-| Pydantic payload validation | Second parameter to handler is the model |
-| Room management | Pattern matching with guards |
-| Heartbeat / ping-pong | Automatic ghost-connection detection |
-| Rate limiting | Token bucket per connection |
-| JWT + API key auth | Pluggable `AuthBackend` protocol |
-| Origin validation | Wildcard and exact-match |
-| Middleware | FIFO chain, same API as FastAPI |
-| Dependency injection | `Depends()` with yield-based cleanup |
-| Interactive docs UI | `/socket-docs` — Swagger-style event browser |
-| TestClient | In-process testing without a server |
-| `mypy --strict` | Full type safety |
+| **Decorator-based event handlers** | `@socket.on("event")` with full type inference |
+| **Pydantic payload validation** | Automatic schema extraction, constraint enforcement, structured error responses |
+| **Interactive documentation UI** | `/socket-docs` -- Swagger-style event browser with live "Try it out" testing |
+| **Room management** | Join, leave, broadcast with pattern-based guards and lifecycle hooks |
+| **Authentication** | JWT and API key backends with pluggable `AuthBackend` protocol |
+| **Rate limiting** | Token bucket algorithm, per-connection, configurable burst capacity |
+| **Origin validation** | Wildcard and exact-match origin allowlists |
+| **Session management** | Heartbeat ping/pong, idle timeout, max duration, token refresh warnings |
+| **Middleware** | FIFO chain with the same `next_handler` pattern as ASGI middleware |
+| **Dependency injection** | `Depends()` with support for generator-based cleanup via `AsyncExitStack` |
+| **In-process TestClient** | Full-stack testing without a server, network, or ports |
+| **Strict type safety** | Passes `mypy --strict` across the entire codebase |
 
 ---
 
-## Install
+## How It Compares
+
+| Feature | python-socketio | Django Channels | SocketSpec |
+|---|---|---|---|
+| FastAPI-native mounting | No | No | Yes |
+| Pydantic payload validation | No | No | Yes |
+| Built-in interactive documentation | No | No | Yes |
+| In-process TestClient | No | Partial | Yes |
+| Room guards with pattern matching | Manual | Manual | Built-in |
+| Dependency injection | No | No | Yes |
+| Strict type checking | No | No | Yes |
+
+---
+
+## Quick Install
 
 ```bash
 pip install socketspec[fastapi]
 ```
 
+Requires Python 3.10 or later.
+
 ---
 
-## Next Steps
+## Where to Go Next
 
-- [Quickstart](quickstart.md) — Running in 5 minutes
-- [First Event Tutorial](tutorial/first-event.md) — Step-by-step walkthrough
-- [API Reference: SocketApp](reference/socketapp.md) — Full parameter reference
+<div class="grid cards" markdown>
+
+-   **Installation**
+
+    Set up SocketSpec in your project with the right extras for your framework.
+
+    [:octicons-arrow-right-24: Installation Guide](getting-started/installation.md)
+
+-   **Quickstart**
+
+    Build and test a working WebSocket API in under five minutes.
+
+    [:octicons-arrow-right-24: Quickstart](getting-started/quickstart.md)
+
+-   **Interactive Documentation**
+
+    Learn how to use the built-in `/socket-docs` UI to test events from your browser.
+
+    [:octicons-arrow-right-24: Interactive Docs Guide](how-to/interactive-docs.md)
+
+-   **Architecture**
+
+    Understand the request lifecycle, component design, and extension points.
+
+    [:octicons-arrow-right-24: Architecture Overview](concepts/architecture.md)
+
+</div>

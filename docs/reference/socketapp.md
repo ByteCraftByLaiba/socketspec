@@ -49,7 +49,7 @@ async def handler(conn: Connection, payload: MyModel) -> None: ...
 | `emits` | `list[Emits]` | `[]` | Metadata: events the handler emits back to sender |
 | `broadcasts` | `list[Broadcasts]` | `[]` | Metadata: events the handler broadcasts to rooms |
 | `ordered` | `bool` | `False` | If True, events from this connection are processed sequentially |
-| `deprecated` | `bool` | `False` | Shows ⚠ DEPRECATED badge in the docs UI |
+| `deprecated` | `bool` | `False` | Shows a DEPRECATED badge in the docs UI |
 
 ---
 

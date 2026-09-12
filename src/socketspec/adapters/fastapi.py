@@ -21,6 +21,7 @@ Does NOT own business logic or event handlers.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from fastapi import FastAPI, WebSocket
@@ -49,13 +50,26 @@ def mount(
         path: WebSocket endpoint path.
     """
 
-    @app.on_event("startup")
-    async def startup() -> None:
-        socket_app._startup_validate()
+    from contextlib import asynccontextmanager  # noqa: PLC0415
 
-    @app.on_event("shutdown")
-    async def shutdown() -> None:
-        await socket_app._graceful_shutdown()
+    original_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def socketspec_lifespan(app: FastAPI) -> AsyncIterator[None]:
+        socket_app._startup_validate()
+        # F-04: try/finally ensures _graceful_shutdown() is called even if the
+        # application crashes (an exception propagating through yield would
+        # otherwise skip the shutdown call entirely).
+        try:
+            if original_lifespan:
+                async with original_lifespan(app):
+                    yield
+            else:
+                yield
+        finally:
+            await socket_app._graceful_shutdown()
+
+    app.router.lifespan_context = socketspec_lifespan
 
     @app.websocket(path)
     async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -74,27 +88,51 @@ def mount(
             query_params=query_params,
         )
         if conn is None:
+            # F-05: if handle_connect didn't already close the socket (e.g.
+            # the auth backend closed it with its own code via FastAPISocketWrapper),
+            # send an explicit Policy Violation close so the client always gets
+            # a meaningful signal. Check application_state to avoid double-close.
+            from starlette.websockets import WebSocketState  # noqa: PLC0415
+
+            if websocket.application_state == WebSocketState.CONNECTED:
+                await websocket.close(code=1008)
             return
 
-        try:
-            while True:
+        # F-03: isolate the receive() call from handle_event() so that a
+        # transient error in event processing never tears down the connection.
+        # Only a true WebSocket-level disconnect (WebSocketDisconnect) or an
+        # unrecoverable exception from receive_text() itself ends the loop.
+        while True:
+            try:
                 data = await websocket.receive_text()
+            except WebSocketDisconnect as exc:
+                await socket_app.handle_disconnect(conn, reason=str(exc.code))
+                return
+            except Exception:
+                logger.error(
+                    "Unrecoverable WebSocket receive error for connection %s",
+                    conn.id,
+                    exc_info=True,
+                )
+                await socket_app.handle_disconnect(conn, reason="server_error")
+                return
+            try:
                 await socket_app.handle_event(conn, data)
-        except WebSocketDisconnect as exc:
-            await socket_app.handle_disconnect(conn, reason=str(exc.code))
-        except Exception:
-            logger.error(
-                "Unexpected WebSocket error for connection %s",
-                conn.id,
-                exc_info=True,
-            )
-            await socket_app.handle_disconnect(conn, reason="server_error")
+            except Exception:
+                # handle_event already emits an __error__ envelope to the
+                # client; log here for server-side observability and continue.
+                logger.error(
+                    "Unexpected error processing event for connection %s",
+                    conn.id,
+                    exc_info=True,
+                )
 
     if socket_app._docs:
         mount_docs(app, socket_app)
 
     if socket_app._debug:
         from socketspec.docs.debug_router import mount_debug  # noqa: PLC0415
+
         mount_debug(app, socket_app)
 
 

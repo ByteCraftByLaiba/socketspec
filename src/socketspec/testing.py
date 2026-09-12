@@ -66,6 +66,10 @@ class TestConnection:
         self._app = app
         self._conn = conn
         self._raw_socket = raw_socket
+        # Buffer for messages that arrived out of order relative to the
+        # currently awaited event. Messages are re-checked on every receive()
+        # call rather than discarded.
+        self._buffer: list[dict[str, Any]] = []
 
     @property
     def connection(self) -> Connection:
@@ -83,7 +87,19 @@ class TestConnection:
         *,
         timeout: float = DEFAULT_RECEIVE_TIMEOUT_SECONDS,
     ) -> PayloadDict:
-        """Wait for a specific outbound event from the server."""
+        """Wait for a specific outbound event from the server.
+
+        Non-matching messages are stored in an internal buffer and
+        re-checked on subsequent calls, so out-of-order delivery never
+        causes messages to be silently discarded.
+        """
+        # Check the buffer first before touching the queue.
+        for i, buffered in enumerate(self._buffer):
+            if buffered.get("event") == event:
+                self._buffer.pop(i)
+                payload = buffered.get("payload", {})
+                return payload if isinstance(payload, dict) else {"value": payload}
+
         deadline = asyncio.get_running_loop().time() + timeout
         while True:
             remaining = deadline - asyncio.get_running_loop().time()
@@ -102,6 +118,8 @@ class TestConnection:
                 if isinstance(payload, dict):
                     return payload
                 return {"value": payload}
+            # Buffer non-matching messages for future receive() calls.
+            self._buffer.append(message)
 
     async def receive_broadcast(
         self,

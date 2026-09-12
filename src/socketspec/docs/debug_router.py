@@ -234,7 +234,6 @@ def mount_debug(app: FastAPI, socket_app: SocketApp) -> None:
     mod_globals["StreamingResponse"] = StreamingResponse
 
     debug_url = socket_app._debug_url.rstrip("/")
-    queue = socket_app._debug_queue
 
     @app.get(debug_url, response_model=None)
     async def debug_index(request: Request) -> HTMLResponse:
@@ -243,16 +242,60 @@ def mount_debug(app: FastAPI, socket_app: SocketApp) -> None:
     @app.get(f"{debug_url}/stream", response_model=None)
     async def debug_stream(request: Request) -> StreamingResponse:
         async def event_generator() -> AsyncIterator[str]:
-            # Guarded: mount_debug only called when debug=True
-            assert queue is not None
-            while True:
-                if await request.is_disconnected():
-                    break
-                try:
-                    entry = await asyncio.wait_for(queue.get(), timeout=15.0)
-                    yield f"data: {json.dumps(entry)}\n\n"
-                except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
+            if not socket_app._debug:
+                return
+            # Each SSE client gets its own queue so multiple browser tabs
+            # all receive every log entry (fan-out, not competing consumer).
+            client_queue = socket_app._debug_subscribe()
+            shutdown_event = socket_app._shutdown_event
+            loop = asyncio.get_running_loop()
+            try:
+                while True:
+                    if await request.is_disconnected():
+                        break
+                    if shutdown_event.is_set():
+                        break
+
+                    # Race queue.get() against a shutdown wakeup so Ctrl+C
+                    # is never blocked waiting for the next log entry.
+                    get_task = loop.create_task(client_queue.get())
+                    wait_task = loop.create_task(shutdown_event.wait())
+                    done, pending = await asyncio.wait(
+                        {get_task, wait_task},
+                        timeout=15.0,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+
+                    # Always cancel the task that didn't win.
+                    for t in pending:
+                        t.cancel()
+
+                    if shutdown_event.is_set():
+                        # Put the item back if we dequeued it before noticing shutdown.
+                        if get_task in done and not get_task.cancelled():
+                            try:
+                                item = get_task.result()
+                                if item is not None:
+                                    client_queue.put_nowait(item)
+                            except Exception:  # noqa: BLE001
+                                pass
+                        break
+
+                    if not done:
+                        # Timeout — send keepalive.
+                        yield ": keepalive\n\n"
+                        continue
+
+                    if get_task in done:
+                        try:
+                            entry = get_task.result()
+                        except Exception:  # noqa: BLE001
+                            break
+                        if entry is None:
+                            break
+                        yield f"data: {json.dumps(entry)}\n\n"
+            finally:
+                socket_app._debug_unsubscribe(client_queue)
 
         return StreamingResponse(
             event_generator(),

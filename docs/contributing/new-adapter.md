@@ -28,7 +28,7 @@ An adapter:
 ## Step 1 — Implement `RawSocket`
 
 Study the FastAPI adapter as a reference:
-[`src/socketspec/adapters/fastapi.py`](../../src/socketspec/adapters/fastapi.py)
+`src/socketspec/adapters/fastapi.py`
 
 For a hypothetical Litestar adapter:
 
@@ -163,6 +163,3 @@ Your adapter must never:
 - Catch exceptions from `handle_event()` silently (handler errors are already caught internally)
 - Call `handle_disconnect()` more than once per connection
 - Store connection state outside of `ConnectionManager` (INV-1)
-
-See [`.context/SYSTEM_CURRENT.md`](../../.context/SYSTEM_CURRENT.md) for the full
-list of system invariants.

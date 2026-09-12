@@ -1,7 +1,8 @@
 /**
  * SocketSpec Docs UI - main.js
- * Renders socket events using Swagger UI HTML class names for pixel-perfect
- * visual parity. No emojis anywhere in this file.
+ * Implements an exact Swagger UI replica with correct parameter schemas,
+ * collapsible models, clean button states, and a responsive drawer layout.
+ * No emojis are used in the UI or code.
  */
 
 /* --- Constants --- */
@@ -15,12 +16,12 @@ let authApiKey = '';
 let connId = null;
 let isConnected = false;
 
-/** Maps event name to { editor, responseBlock, tryItActive } */
+/** Maps event name to try-it out context */
 const tryItContexts = {};
 /** Maps trigger event name to Set of server-sent event names */
 const responseEventIndex = {};
 
-/* --- DOM refs (created dynamically) --- */
+/* --- DOM refs --- */
 let statusDotEl = null;
 let statusTextEl = null;
 let statusConnIdEl = null;
@@ -68,48 +69,89 @@ function exampleFromSchema(s) {
   return out;
 }
 
+/* --- Parameter / Schema Table (Swagger Style) --- */
 function buildSchemaTable(s) {
   if (!s || !s.properties) {
     const p = document.createElement('p');
-    p.style.cssText = 'color:#999;font-style:italic;margin:4px 0';
-    p.textContent = 'No payload';
+    p.style.cssText = 'color:#999;font-style:italic;margin:8px 0;font-size:0.85rem;';
+    p.textContent = 'No payload schema';
     return p;
   }
   const required = new Set(s.required || []);
   const table = document.createElement('table');
-  table.className = 'socketspec-table';
+  table.className = 'parameters-table';
 
   const thead = table.createTHead();
   const hrow = thead.insertRow();
-  for (const col of ['Name', 'Type', 'Required', 'Description']) {
-    const th = document.createElement('th');
-    th.textContent = col;
-    hrow.appendChild(th);
-  }
+  const thParam = document.createElement('th'); thParam.textContent = 'Parameter';
+  const thDesc = document.createElement('th'); thDesc.textContent = 'Description';
+  hrow.appendChild(thParam);
+  hrow.appendChild(thDesc);
 
   const tbody = table.createTBody();
   for (const [name, def] of Object.entries(s.properties)) {
     const row = tbody.insertRow();
 
-    const tdName = row.insertCell(); tdName.className = 'col-name'; tdName.textContent = name;
-    const tdType = row.insertCell(); tdType.className = 'col-type';
-    tdType.textContent = def.type ?? (def.$ref ? 'object' : 'any');
+    // Column 1: Parameter name + metadata
+    const tdParam = row.insertCell();
+    tdParam.className = 'parameter__name';
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = name;
+    tdParam.appendChild(nameSpan);
 
-    const tdReq = row.insertCell();
     if (required.has(name)) {
-      const star = document.createElement('span');
-      star.className = 'required-star'; star.textContent = '*';
-      tdReq.appendChild(star);
+      const reqSpan = document.createElement('span');
+      reqSpan.className = 'parameter__required';
+      reqSpan.textContent = '* required';
+      tdParam.appendChild(reqSpan);
     }
 
-    const tdDesc = row.insertCell(); tdDesc.className = 'col-desc';
-    tdDesc.textContent = def.description ?? def.title ?? '';
+    const typeDiv = document.createElement('div');
+    typeDiv.className = 'parameter__type';
+    typeDiv.textContent = def.type ?? (def.$ref ? 'object' : 'any');
+    tdParam.appendChild(typeDiv);
+
+    const inDiv = document.createElement('div');
+    inDiv.className = 'parameter__in';
+    inDiv.textContent = '$(payload)';
+    tdParam.appendChild(inDiv);
+
+    // Column 2: Description
+    const tdDesc = row.insertCell();
+    const descDiv = document.createElement('div');
+    descDiv.className = 'parameter__description';
+    descDiv.textContent = def.description ?? def.title ?? '';
+    tdDesc.appendChild(descDiv);
   }
   return table;
 }
 
-/* --- Card building --- */
-function makeOpblock(direction, eventName, descText, schemaObj, isSubcard) {
+/* --- Collapsible Model Box (Swagger Style) --- */
+function makeModelBox(title, schemaObj) {
+  const box = document.createElement('div');
+  box.className = 'model-box';
+
+  const header = document.createElement('div');
+  header.className = 'model-header';
+  header.textContent = title || 'Model';
+
+  const content = document.createElement('div');
+  content.className = 'model-content';
+  content.appendChild(buildSchemaTable(schemaObj));
+
+  header.addEventListener('click', (e) => {
+    e.stopPropagation(); // prevent parent card toggle
+    box.classList.toggle('is-open');
+  });
+
+  box.appendChild(header);
+  box.appendChild(content);
+  return box;
+}
+
+/* --- Collapsible Opblock Container --- */
+function makeOpblock(direction, eventName, descText, isSubcard) {
   // direction: 'emit' | 'listen' | 'broadcast'
   const block = document.createElement('div');
   block.className = `opblock opblock-${direction}`;
@@ -119,9 +161,8 @@ function makeOpblock(direction, eventName, descText, schemaObj, isSubcard) {
   const summary = document.createElement('div');
   summary.className = 'opblock-summary';
 
-  const method = document.createElement('button');
+  const method = document.createElement('span');
   method.className = 'opblock-summary-method';
-  method.type = 'button';
   method.textContent = direction.toUpperCase();
 
   const pathEl = document.createElement('div');
@@ -138,80 +179,128 @@ function makeOpblock(direction, eventName, descText, schemaObj, isSubcard) {
   summary.appendChild(pathEl);
   summary.appendChild(descEl);
 
-  // Toggle on summary click
-  summary.addEventListener('click', () => block.classList.toggle('is-open'));
+  // Summary click collapses/expands the main card
+  summary.addEventListener('click', () => {
+    block.classList.toggle('is-open');
+  });
 
   block.appendChild(summary);
 
   // Body
   const body = document.createElement('div');
   body.className = 'opblock-body';
-
-  if (schemaObj !== undefined) {
-    // Schema section inside subcard
-    const sec = document.createElement('div');
-    sec.className = 'opblock-section';
-    const secHead = document.createElement('div');
-    secHead.className = 'opblock-section-header';
-    const h4 = document.createElement('h4'); h4.textContent = 'Schema';
-    secHead.appendChild(h4);
-    sec.appendChild(secHead);
-    const inner = document.createElement('div');
-    inner.className = 'table-container';
-    inner.appendChild(buildSchemaTable(schemaObj));
-    sec.appendChild(inner);
-    body.appendChild(sec);
-  }
-
   block.appendChild(body);
+
   return { block, body };
 }
 
-function buildTryItSection(event) {
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+/* --- Error Table --- */
+function buildErrorTable() {
+  const errors = [
+    { code: 'VALIDATION_ERROR',  desc: 'Payload failed Pydantic validation or JSON parsing failed.' },
+    { code: 'RATE_LIMIT_ERROR',  desc: 'Connection exceeded the allowed rate limit.' },
+    { code: 'UNKNOWN_EVENT',     desc: 'The sent event name has no registered handler.' },
+    { code: 'PAYLOAD_TOO_LARGE', desc: 'Incoming frame exceeded the maximum payload size.' },
+  ];
+  const table = document.createElement('table');
+  table.className = 'responses-table';
+  
+  const thead = table.createTHead();
+  const hrow = thead.insertRow();
+  const th1 = document.createElement('th'); th1.textContent = 'Code';
+  const th2 = document.createElement('th'); th2.textContent = 'Description';
+  hrow.appendChild(th1);
+  hrow.appendChild(th2);
 
+  const tbody = table.createTBody();
+  for (const e of errors) {
+    const row = tbody.insertRow();
+    
+    const tdCode = row.insertCell();
+    tdCode.className = 'response-code';
+    const strong = document.createElement('strong');
+    strong.textContent = e.code;
+    tdCode.appendChild(strong);
+
+    const tdDesc = row.insertCell();
+    tdDesc.className = 'parameter__description';
+    tdDesc.textContent = e.desc;
+  }
+  return table;
+}
+
+/* --- Event Card --- */
+function buildEventCard(event) {
+  const { block, body } = makeOpblock('emit', event.name, event.description || '', false);
+
+  // Try it out buttons
   const tryItBtn = document.createElement('button');
   tryItBtn.className = 'try-out__btn';
   tryItBtn.type = 'button';
   tryItBtn.textContent = 'Try it out';
 
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-cancel-try';
+  cancelBtn.type = 'button';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.display = 'none';
+
+  // Parameters Section Header
+  const tryHeader = document.createElement('div');
+  tryHeader.className = 'opblock-section-header';
+  const tryLabel = document.createElement('h4');
+  tryLabel.textContent = 'Parameters';
+  tryHeader.appendChild(tryLabel);
+
+  const btnWrapper = document.createElement('div');
+  btnWrapper.appendChild(tryItBtn);
+  btnWrapper.appendChild(cancelBtn);
+  tryHeader.appendChild(btnWrapper);
+  body.appendChild(tryHeader);
+
+  // Parameters table container
+  const paramInner = document.createElement('div');
+  paramInner.className = 'table-container';
+  paramInner.appendChild(buildSchemaTable(event.payload));
+  body.appendChild(paramInner);
+
+  // Editor wrapper
   const editorArea = document.createElement('div');
+  editorArea.className = 'editor-wrapper';
   editorArea.style.display = 'none';
+
+  const editorLabel = document.createElement('div');
+  editorLabel.className = 'editor-title';
+  editorLabel.textContent = 'Payload JSON';
+  editorArea.appendChild(editorLabel);
 
   const editor = document.createElement('textarea');
   editor.className = 'payload-editor';
   editor.value = JSON.stringify(exampleFromSchema(event.payload), null, 2);
-
-  const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  editorArea.appendChild(editor);
 
   const execBtn = document.createElement('button');
   execBtn.className = 'btn-execute';
   execBtn.type = 'button';
   execBtn.textContent = 'Execute';
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn-cancel-try';
-  cancelBtn.type = 'button';
-  cancelBtn.textContent = 'Cancel';
-
-  btnRow.appendChild(execBtn);
-  btnRow.appendChild(cancelBtn);
-  editorArea.appendChild(editor);
-  editorArea.appendChild(btnRow);
+  editorArea.appendChild(execBtn);
 
   const responseBlock = document.createElement('pre');
   responseBlock.className = 'response-block';
   responseBlock.style.display = 'none';
 
-  tryItBtn.addEventListener('click', () => {
+  // Toggle behavior
+  tryItBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     tryItBtn.style.display = 'none';
+    cancelBtn.style.display = 'inline-block';
     editorArea.style.display = 'block';
   });
 
-  cancelBtn.addEventListener('click', () => {
-    tryItBtn.style.display = '';
+  cancelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    tryItBtn.style.display = 'inline-block';
+    cancelBtn.style.display = 'none';
     editorArea.style.display = 'none';
     responseBlock.style.display = 'none';
   });
@@ -236,99 +325,128 @@ function buildTryItSection(event) {
     responseBlock.textContent = 'Sent. Waiting for response...';
   });
 
+  body.appendChild(editorArea);
+  body.appendChild(responseBlock);
+
   tryItContexts[event.name] = { editor, responseBlock, editorArea, tryItBtn };
 
-  wrapper.appendChild(tryItBtn);
-  wrapper.appendChild(editorArea);
-  wrapper.appendChild(responseBlock);
-  return wrapper;
-}
+  // Responses section header
+  const respSection = document.createElement('div');
+  respSection.className = 'opblock-section';
+  
+  const respHeader = document.createElement('div');
+  respHeader.className = 'opblock-section-header';
+  const respLabel = document.createElement('h4');
+  respLabel.textContent = 'Responses';
+  respHeader.appendChild(respLabel);
+  respSection.appendChild(respHeader);
 
-function buildErrorTable() {
-  const errors = [
-    { code: 'VALIDATION_ERROR',  desc: 'Payload failed Pydantic validation or JSON parsing failed.' },
+  // Responses table
+  const respTable = document.createElement('table');
+  respTable.className = 'responses-table';
+  
+  const rthead = respTable.createTHead();
+  const rhrow = rthead.insertRow();
+  const rth1 = document.createElement('th'); rth1.textContent = 'Event / Code';
+  const rth2 = document.createElement('th'); rth2.textContent = 'Description';
+  rhrow.appendChild(rth1);
+  rhrow.appendChild(rth2);
+
+  const rtbody = respTable.createTBody();
+
+  // Emits responses
+  if (event.emits && event.emits.length > 0) {
+    responseEventIndex[event.name] = responseEventIndex[event.name] || new Set();
+    for (const em of event.emits) {
+      const row = rtbody.insertRow();
+      
+      const tdEvent = row.insertCell();
+      tdEvent.className = 'response-code';
+      const badge = document.createElement('span');
+      badge.className = 'resp-badge emit';
+      badge.textContent = 'emit';
+      const name = document.createElement('strong');
+      name.textContent = em.event;
+      tdEvent.appendChild(badge);
+      tdEvent.appendChild(name);
+
+      const tdDesc = row.insertCell();
+      const descText = document.createElement('div');
+      descText.className = 'parameter__description';
+      descText.textContent = em.description || '';
+      tdDesc.appendChild(descText);
+
+      if (em.schema) {
+        tdDesc.appendChild(makeModelBox('Model Schema', em.schema));
+      }
+      responseEventIndex[event.name].add(em.event);
+    }
+  }
+
+  // Broadcasts responses
+  if (event.broadcasts && event.broadcasts.length > 0) {
+    responseEventIndex[event.name] = responseEventIndex[event.name] || new Set();
+    for (const bc of event.broadcasts) {
+      const row = rtbody.insertRow();
+
+      const tdEvent = row.insertCell();
+      tdEvent.className = 'response-code';
+      const badge = document.createElement('span');
+      badge.className = 'resp-badge broadcast';
+      badge.textContent = 'broadcast';
+      const name = document.createElement('strong');
+      name.textContent = bc.event;
+      
+      const room = document.createElement('div');
+      room.className = 'response-room';
+      room.textContent = `Room: ${bc.room || '?'}`;
+
+      tdEvent.appendChild(badge);
+      tdEvent.appendChild(name);
+      tdEvent.appendChild(room);
+
+      const tdDesc = row.insertCell();
+      const descText = document.createElement('div');
+      descText.className = 'parameter__description';
+      descText.textContent = bc.description || '';
+      tdDesc.appendChild(descText);
+
+      if (bc.schema) {
+        tdDesc.appendChild(makeModelBox('Model Schema', bc.schema));
+      }
+      responseEventIndex[event.name].add(bc.event);
+    }
+  }
+
+  // Standard errors list inside the responses table
+  const stdErrors = [
+    { code: 'VALIDATION_ERROR',  desc: 'Payload failed Pydantic validation.' },
     { code: 'RATE_LIMIT_ERROR',  desc: 'Connection exceeded the allowed rate limit.' },
-    { code: 'UNKNOWN_EVENT',     desc: 'The sent event name has no registered handler.' },
+    { code: 'UNKNOWN_EVENT',     desc: 'Sent event has no registered handler.' },
     { code: 'PAYLOAD_TOO_LARGE', desc: 'Incoming frame exceeded the maximum payload size.' },
   ];
-  const table = document.createElement('table');
-  table.className = 'socketspec-table';
-  const thead = table.createTHead();
-  const hrow = thead.insertRow();
-  ['Code', 'When it occurs'].forEach(col => {
-    const th = document.createElement('th'); th.textContent = col; hrow.appendChild(th);
-  });
-  const tbody = table.createTBody();
-  for (const e of errors) {
-    const row = tbody.insertRow();
-    const c1 = row.insertCell(); c1.className = 'col-name'; c1.textContent = e.code;
-    const c2 = row.insertCell(); c2.className = 'col-desc'; c2.textContent = e.desc;
-  }
-  return table;
-}
+  for (const err of stdErrors) {
+    const row = rtbody.insertRow();
+    
+    const tdEvent = row.insertCell();
+    tdEvent.className = 'response-code';
+    const badge = document.createElement('span');
+    badge.className = 'resp-badge error';
+    badge.textContent = 'error';
+    const name = document.createElement('strong');
+    name.textContent = err.code;
+    tdEvent.appendChild(badge);
+    tdEvent.appendChild(name);
 
-function buildSection(label, child) {
-  const sec = document.createElement('div');
-  sec.className = 'opblock-section';
-
-  const head = document.createElement('div');
-  head.className = 'opblock-section-header';
-  const h5 = document.createElement('h5'); h5.textContent = label;
-  head.appendChild(h5);
-  sec.appendChild(head);
-
-  const inner = document.createElement('div');
-  inner.className = 'table-container';
-  inner.appendChild(child);
-  sec.appendChild(inner);
-  return sec;
-}
-
-function buildEventCard(event) {
-  const { block, body } = makeOpblock('emit', event.name, event.description || '', undefined, false);
-
-  // Try it out button row (top right of body header)
-  const tryHeader = document.createElement('div');
-  tryHeader.className = 'opblock-section-header';
-  const tryLabel = document.createElement('h4');
-  tryLabel.textContent = 'Parameters';
-  tryHeader.appendChild(tryLabel);
-  tryHeader.appendChild(buildTryItSection(event));
-  body.appendChild(tryHeader);
-
-  // Parameters table
-  const paramInner = document.createElement('div');
-  paramInner.className = 'table-container';
-  paramInner.appendChild(buildSchemaTable(event.payload));
-  body.appendChild(paramInner);
-
-  // Server responds section
-  if (event.emits && event.emits.length > 0) {
-    const emitWrap = document.createElement('div');
-    emitWrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:8px';
-    for (const em of event.emits) {
-      const { block: sub } = makeOpblock('listen', em.event, em.description || '', em.schema, true);
-      emitWrap.appendChild(sub);
-    }
-    body.appendChild(buildSection('Server responds to sender', emitWrap));
-    responseEventIndex[event.name] = responseEventIndex[event.name] || new Set();
-    for (const em of event.emits) responseEventIndex[event.name].add(em.event);
+    const tdDesc = row.insertCell();
+    const descText = document.createElement('div');
+    descText.className = 'parameter__description';
+    descText.textContent = err.desc;
+    tdDesc.appendChild(descText);
   }
 
-  // Room broadcast section
-  if (event.broadcasts && event.broadcasts.length > 0) {
-    const bcastWrap = document.createElement('div');
-    bcastWrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:8px';
-    for (const bc of event.broadcasts) {
-      const label = `${bc.event} — Room: ${bc.room || '?'}`;
-      const { block: sub } = makeOpblock('broadcast', label, bc.description || '', bc.schema, true);
-      bcastWrap.appendChild(sub);
-    }
-    body.appendChild(buildSection('Broadcast to room', bcastWrap));
-  }
-
-  // Error responses section (always shown)
-  body.appendChild(buildSection('Error responses', buildErrorTable()));
+  respSection.appendChild(respTable);
+  body.appendChild(respSection);
 
   return block;
 }
@@ -338,7 +456,6 @@ function renderEvents() {
   const root = document.getElementById('socketspec-ui');
   root.innerHTML = '';
 
-  // swagger-ui wrapper
   const ui = document.createElement('div');
   ui.className = 'swagger-ui';
 
@@ -378,9 +495,29 @@ function renderEvents() {
   authBtnEl.textContent = 'Authorize';
   authBtnEl.addEventListener('click', () => authModal.showModal());
 
+  // Theme selector dropdown
+  const themeSelect = document.createElement('select');
+  themeSelect.id = 'theme-selector';
+  themeSelect.style.cssText = 'padding:6px 12px; font-size:0.875rem; border:1px solid #444; border-radius:4px; background:#333; color:#fff; cursor:pointer; font-weight:700;';
+  const optLight = document.createElement('option'); optLight.value = 'light'; optLight.textContent = 'Light Mode';
+  const optDark = document.createElement('option'); optDark.value = 'dark'; optDark.textContent = 'Dark Mode';
+  themeSelect.appendChild(optLight);
+  themeSelect.appendChild(optDark);
+
+  const savedTheme = localStorage.getItem('socketspec-theme') || 'light';
+  themeSelect.value = savedTheme;
+  document.body.className = `theme-${savedTheme}`;
+
+  themeSelect.addEventListener('change', () => {
+    const selected = themeSelect.value;
+    document.body.className = `theme-${selected}`;
+    localStorage.setItem('socketspec-theme', selected);
+  });
+
   ctrlDiv.appendChild(wsUrlInput);
   ctrlDiv.appendChild(connectBtn);
   ctrlDiv.appendChild(authBtnEl);
+  ctrlDiv.appendChild(themeSelect);
   topbar.appendChild(brandDiv);
   topbar.appendChild(ctrlDiv);
   ui.appendChild(topbar);
@@ -458,6 +595,7 @@ function renderEvents() {
   logHeader.className = 'log-header';
   const logTitle = document.createElement('strong');
   logTitle.textContent = 'Live Log';
+
   logFilterEl = document.createElement('input');
   logFilterEl.type = 'text';
   logFilterEl.placeholder = 'Filter...';
@@ -467,12 +605,22 @@ function renderEvents() {
       el.style.display = val && !el.textContent.toLowerCase().includes(val) ? 'none' : '';
     }
   });
+
   const clearBtn = document.createElement('button');
   clearBtn.textContent = 'Clear';
   clearBtn.addEventListener('click', () => { if (logOutputEl) logOutputEl.innerHTML = ''; });
+
+  const minBtn = document.createElement('button');
+  minBtn.textContent = 'Minimize';
+  minBtn.addEventListener('click', () => {
+    logDrawer.classList.toggle('is-minimized');
+    minBtn.textContent = logDrawer.classList.contains('is-minimized') ? 'Maximize' : 'Minimize';
+  });
+
   logHeader.appendChild(logTitle);
   logHeader.appendChild(logFilterEl);
   logHeader.appendChild(clearBtn);
+  logHeader.appendChild(minBtn);
 
   logOutputEl = document.createElement('pre');
   logOutputEl.id = 'log-output';
@@ -525,7 +673,9 @@ function routeIncoming(data) {
       const ctx = tryItContexts[trigger];
       if (ctx && ctx.editorArea.style.display !== 'none') {
         ctx.responseBlock.style.display = 'block';
-        ctx.responseBlock.textContent = JSON.stringify(data, null, 2);
+        const currentText = ctx.responseBlock.textContent;
+        const cleanText = (currentText === 'Sent. Waiting for response...' || currentText.startsWith('Error:')) ? '' : currentText;
+        ctx.responseBlock.textContent = (cleanText ? cleanText + '\n' : '') + JSON.stringify(data, null, 2);
       }
     }
   }
@@ -535,7 +685,9 @@ function routeIncoming(data) {
     for (const ctx of Object.values(tryItContexts)) {
       if (ctx.editorArea.style.display !== 'none') {
         ctx.responseBlock.style.display = 'block';
-        ctx.responseBlock.textContent = JSON.stringify(data, null, 2);
+        const currentText = ctx.responseBlock.textContent;
+        const cleanText = (currentText === 'Sent. Waiting for response...' || currentText.startsWith('Error:')) ? '' : currentText;
+        ctx.responseBlock.textContent = (cleanText ? cleanText + '\n' : '') + JSON.stringify(data, null, 2);
       }
     }
   }

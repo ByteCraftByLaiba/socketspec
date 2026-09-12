@@ -101,16 +101,24 @@ class MemoryBackend:
             return list(self._conn_rooms.get(id, set()))
 
     async def publish(self, channel: str, message: dict[str, Any]) -> None:
-        """Deliver a message to all in-process subscribers on a channel."""
+        """Deliver a message to all in-process subscribers on a channel.
+
+        Callbacks are dispatched concurrently so a slow subscriber cannot
+        block delivery to other subscribers (head-of-line blocking).
+        """
         callbacks = list(self._subscribers.get(channel, []))
-        for callback in callbacks:
-            try:
-                await callback(message)
-            except Exception:
+        if not callbacks:
+            return
+        results = await asyncio.gather(
+            *[cb(message) for cb in callbacks],
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, Exception):
                 logger.error(
                     "Pub/sub callback failed on channel %s",
                     channel,
-                    exc_info=True,
+                    exc_info=result,
                 )
 
     async def subscribe(

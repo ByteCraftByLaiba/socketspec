@@ -93,9 +93,16 @@ class SocketApp:
         self._docs_access_token = docs_access_token
         self._debug = debug
         self._debug_url = debug_url
-        self._debug_queue: asyncio.Queue[dict[str, Any]] | None = (
+        # Single source-of-truth queue kept for backward compat with tests that
+        # put_nowait directly. SSE clients each get their own queue via
+        # _debug_subscribe / _debug_unsubscribe (fan-out pattern).
+        self._debug_queue: asyncio.Queue[dict[str, Any] | None] | None = (
             asyncio.Queue(maxsize=500) if debug else None
         )
+        # Per-client SSE subscriber queues (fan-out). Each connected debug tab
+        # holds a reference; _debug_log broadcasts to all of them.
+        self._debug_subscribers: list[asyncio.Queue[dict[str, Any] | None]] = []
+        self._shutdown_event: asyncio.Event = asyncio.Event()
         self._lifecycle_hooks: dict[str, list[LifecycleHook]] = {
             "connect": [],
             "disconnect": [],
@@ -104,6 +111,8 @@ class SocketApp:
             "room_leave": [],
         }
         self._compiled_chain: CompiledHandler = self._router.dispatch
+        # Wire error lifecycle hooks into the router now that the hooks dict exists.
+        self._router._on_error_callback = self._run_error_hooks
 
         for room in rooms or []:
             self.rooms.register_static(room.name)
@@ -218,19 +227,21 @@ class SocketApp:
             headers,
             query_params,
         )
-        await self._manager.connect(conn)
+        await self._manager.connect(conn, full_lifecycle=self.handle_disconnect)
         await self._session_mgr.start(conn)
 
         for hook in self._lifecycle_hooks["connect"]:
             await hook(conn)
 
         logger.info("Connection %s established", conn.id)
-        self._debug_log({
-            "type": "connect",
-            "conn_id": conn.id,
-            "user_id": conn.identity.user_id,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        })
+        self._debug_log(
+            {
+                "type": "connect",
+                "conn_id": conn.id,
+                "user_id": conn.identity.user_id,
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }
+        )
         return conn
 
     async def handle_event(
@@ -266,6 +277,12 @@ class SocketApp:
             )
             return
 
+        # __pong__ is a system frame — check before rate limiting so heartbeat
+        # responses never consume rate-limit tokens.
+        if event == "__pong__":
+            self._session_mgr.signal_pong(conn.id)
+            return
+
         if self._rate_limiter is not None:
             allowed = await self._rate_limiter.consume(conn.id)
             if not allowed:
@@ -273,19 +290,15 @@ class SocketApp:
                 return
 
         await self._session_mgr.touch(conn)
-
-        # __pong__ is a system frame — never route it to the event registry.
-        if event == "__pong__":
-            self._session_mgr.signal_pong(conn.id)
-            return
-
-        self._debug_log({
-            "type": "event",
-            "conn_id": conn.id,
-            "event": event,
-            "payload_size": size,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        })
+        self._debug_log(
+            {
+                "type": "event",
+                "conn_id": conn.id,
+                "event": event,
+                "payload_size": size,
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }
+        )
         await self._compiled_chain(conn, event, payload)
 
     async def handle_disconnect(
@@ -296,27 +309,42 @@ class SocketApp:
         """Tear down a connection and run lifecycle cleanup."""
         await self._session_mgr.stop(conn.id)
 
-        for room in list(conn.rooms):
+        # Leave all rooms first so conn.rooms is fully cleared before hooks run.
+        rooms_snapshot = list(conn.rooms)
+        for room in rooms_snapshot:
             await self.rooms.leave(conn, room)
+
+        # Fire room_leave hooks after all rooms are left, with error isolation.
+        for room in rooms_snapshot:
             for hook in self._lifecycle_hooks["room_leave"]:
-                await hook(conn, room)
+                try:
+                    await hook(conn, room)
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "room_leave hook failed for conn=%s room=%s", conn.id, room
+                    )
 
         await self._manager.disconnect(conn)
 
         for hook in self._lifecycle_hooks["disconnect"]:
-            await hook(conn, reason)
+            try:
+                await hook(conn, reason)
+            except Exception:  # noqa: BLE001
+                logger.exception("disconnect hook failed for conn=%s", conn.id)
 
         if self._rate_limiter is not None:
             await self._rate_limiter.remove(conn.id)
 
         await self._router.cleanup(conn.id)
         logger.info("Connection %s disconnected: %s", conn.id, reason)
-        self._debug_log({
-            "type": "disconnect",
-            "conn_id": conn.id,
-            "reason": reason,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        })
+        self._debug_log(
+            {
+                "type": "disconnect",
+                "conn_id": conn.id,
+                "reason": reason,
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
     def _startup_validate(self) -> None:
         """Run startup validation and compile middleware before serving."""
@@ -327,24 +355,67 @@ class SocketApp:
 
     async def _graceful_shutdown(self) -> None:
         """Release backend resources on application shutdown."""
+        # Signal shutdown immediately so SSE streams can exit without blocking.
+        self._shutdown_event.set()
+        if self._debug_queue is not None:
+            try:
+                self._debug_queue.put_nowait(None)
+            except Exception:  # noqa: BLE001
+                pass
         await self._backend.close()
 
     async def _run_room_join_hooks(self, conn: Connection, room: str) -> None:
         for hook in self._lifecycle_hooks["room_join"]:
             await hook(conn, room)
 
-    def _debug_log(self, entry: dict[str, Any]) -> None:
-        """Append a debug log entry to the queue. No-op when debug=False."""
-        if self._debug_queue is None:
-            return
-        try:
-            self._debug_queue.put_nowait(entry)
-        except asyncio.QueueFull:
+    async def _run_error_hooks(self, conn: Connection, exc: Exception) -> None:
+        """Invoke all registered error lifecycle hooks."""
+        for hook in self._lifecycle_hooks["error"]:
             try:
-                self._debug_queue.get_nowait()  # discard oldest
+                await hook(conn, exc)
+            except Exception:
+                logger.exception("Error lifecycle hook raised an exception")
+
+    def _debug_subscribe(self) -> asyncio.Queue[dict[str, Any] | None]:
+        """Register a new per-client SSE queue and return it."""
+        q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue(maxsize=500)
+        self._debug_subscribers.append(q)
+        return q
+
+    def _debug_unsubscribe(self, q: asyncio.Queue[dict[str, Any] | None]) -> None:
+        """Remove a per-client SSE queue when the client disconnects."""
+        try:
+            self._debug_subscribers.remove(q)
+        except ValueError:
+            pass
+
+    def _debug_log(self, entry: dict[str, Any]) -> None:
+        """Broadcast a debug log entry to all active SSE subscribers.
+
+        Each connected debug tab has its own queue so no client starves
+        another. Oldest entries are evicted when a subscriber queue is full.
+        """
+        if not self._debug:
+            return
+        # Also feed the legacy _debug_queue for tests that read it directly.
+        if self._debug_queue is not None:
+            try:
                 self._debug_queue.put_nowait(entry)
-            except Exception:  # noqa: BLE001
-                pass
+            except asyncio.QueueFull:
+                try:
+                    self._debug_queue.get_nowait()
+                    self._debug_queue.put_nowait(entry)
+                except Exception:  # noqa: BLE001
+                    pass
+        for q in list(self._debug_subscribers):
+            try:
+                q.put_nowait(entry)
+            except asyncio.QueueFull:
+                try:
+                    q.get_nowait()
+                    q.put_nowait(entry)
+                except Exception:  # noqa: BLE001
+                    pass
 
     def _build_backend(
         self,
@@ -417,6 +488,12 @@ class SocketApp:
                 ):
                     namespace[name] = cell.cell_contents
             try:
+                # eval() resolves PEP 563 stringified annotations back to
+                # their actual types. The namespace is scoped to the handler
+                # function's own __globals__ and closure variables, so only
+                # names visible to the handler author can be resolved — no
+                # untrusted input ever reaches this call.  The noqa suppression
+                # is intentional; this mirrors typing.get_type_hints() internals.
                 annotation = eval(annotation, namespace)  # noqa: S307
             except Exception:
                 annotation = None

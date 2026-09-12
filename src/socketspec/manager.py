@@ -46,11 +46,18 @@ class ConnectionManager:
         self._connections: dict[ConnectionId, Connection] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, conn: Connection) -> None:
+    async def connect(
+        self,
+        conn: Connection,
+        full_lifecycle: Callable[[Connection, str], Awaitable[None]] | None = None,
+    ) -> None:
         """Register a connection and inject ``emit`` / ``disconnect`` callables.
 
         Args:
             conn: Connection built by the framework adapter.
+            full_lifecycle: Optional callback (e.g. ``app.handle_disconnect``)
+                invoked on server-initiated disconnects so that all lifecycle
+                hooks, room leave, session stop, and router cleanup run.
 
         Raises:
             DuplicateConnectionError: If a connection with the same id exists.
@@ -71,7 +78,7 @@ class ConnectionManager:
             },
         )
         conn._emit_fn = self._make_emitter(conn)
-        conn._disconnect_fn = self._make_disconnector(conn)
+        conn._disconnect_fn = self._make_disconnector(conn, full_lifecycle)
 
     async def disconnect(self, conn: Connection) -> None:
         """Remove a connection from local and backend storage.
@@ -141,10 +148,26 @@ class ConnectionManager:
     def _make_disconnector(
         self,
         conn: Connection,
+        full_lifecycle: Callable[[Connection, str], Awaitable[None]] | None = None,
     ) -> Callable[[str], Awaitable[None]]:
+        """Return a bound disconnect callable for this connection.
+
+        Args:
+            conn: The connection to disconnect.
+            full_lifecycle: If provided, called instead of the bare
+                ``disconnect`` so that rooms, sessions, hooks, and router
+                queues are all cleaned up on server-initiated disconnects.
+        """
+
         async def disconnect(reason: str = "server_close") -> None:
             logger.info("Disconnecting connection %s: %s", conn.id, reason)
-            await conn.raw_socket.close()
-            await self.disconnect(conn)
+            try:
+                await conn.raw_socket.close()
+            except Exception:  # noqa: BLE001
+                pass
+            if full_lifecycle is not None:
+                await full_lifecycle(conn, reason)
+            else:
+                await self.disconnect(conn)
 
         return disconnect

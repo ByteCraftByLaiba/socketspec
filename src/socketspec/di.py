@@ -69,9 +69,7 @@ class DependencyResolver:
             elif name == "conn":
                 resolved[name] = conn
         return {
-            key: value
-            for key, value in resolved.items()
-            if key in signature.parameters
+            key: value for key, value in resolved.items() if key in signature.parameters
         }
 
     async def _resolve_dependency(

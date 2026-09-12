@@ -31,6 +31,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
+from typing import Any
 
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
@@ -51,7 +52,9 @@ socket = SocketApp(docs=True, debug=True)
 
 class GeneratePayload(BaseModel):
     prompt: str = Field(min_length=1, max_length=4096, description="Prompt to complete")
-    max_tokens: int = Field(default=200, ge=1, le=2048, description="Maximum tokens to generate")
+    max_tokens: int = Field(
+        default=200, ge=1, le=2048, description="Maximum tokens to generate"
+    )
 
 
 class TokenResponse(BaseModel):
@@ -86,10 +89,10 @@ async def mock_llm_stream(prompt: str, max_tokens: int) -> AsyncIterator[str]:
     description="Start an LLM completion stream. Tokens arrive as 'token' events.",
     tags=["ai"],
     emits=[
-        Emits("token",     model=TokenResponse, description="One streamed token chunk"),
-        Emits("done",      model=DoneResponse,  description="Stream complete"),
-        Emits("cancelled",                      description="Stream was cancelled"),
-        Emits("error",                          description="Stream error"),
+        Emits("token", model=TokenResponse, description="One streamed token chunk"),
+        Emits("done", model=DoneResponse, description="Stream complete"),
+        Emits("cancelled", description="Stream was cancelled"),
+        Emits("error", description="Stream error"),
     ],
 )
 async def generate(conn: Connection, payload: GeneratePayload) -> None:
@@ -135,7 +138,7 @@ async def generate(conn: Connection, payload: GeneratePayload) -> None:
     tags=["ai"],
     emits=[Emits("cancelled", description="Confirmation that the stream was stopped")],
 )
-async def cancel(conn: Connection) -> None:
+async def cancel(conn: Connection, payload: Any = None) -> None:
     """Interrupt the running stream for this connection."""
     event: asyncio.Event | None = conn.metadata.get("cancel_event")
     if event is not None:

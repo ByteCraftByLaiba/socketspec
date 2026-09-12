@@ -52,16 +52,24 @@ socket = SocketApp(
 
 
 class JoinPayload(BaseModel):
-    room_id: str = Field(min_length=1, max_length=64, description="Room identifier to join")
+    room_id: str = Field(
+        min_length=1, max_length=64, description="Room identifier to join"
+    )
 
 
 class MessagePayload(BaseModel):
-    room_id: str = Field(min_length=1, max_length=64, description="Target room identifier")
-    text: str = Field(min_length=1, max_length=500, description="Message text to broadcast")
+    room_id: str = Field(
+        min_length=1, max_length=64, description="Target room identifier"
+    )
+    text: str = Field(
+        min_length=1, max_length=500, description="Message text to broadcast"
+    )
 
 
 class LeavePayload(BaseModel):
-    room_id: str = Field(min_length=1, max_length=64, description="Room identifier to leave")
+    room_id: str = Field(
+        min_length=1, max_length=64, description="Room identifier to leave"
+    )
 
 
 # ─── Response models ─────────────────────────────────────────────────────────
@@ -127,7 +135,12 @@ async def join_room(conn: Connection, payload: JoinPayload) -> None:
     await socket.rooms.broadcast(
         room_name,
         "member_update",
-        {"room": room_name, "event": "joined", "conn_id": conn.id, "member_count": count},
+        {
+            "room": room_name,
+            "event": "joined",
+            "conn_id": conn.id,
+            "member_count": count,
+        },
         exclude={conn.id},
     )
     logger.info("Connection %s joined %s (%d members)", conn.id, room_name, count)
@@ -151,7 +164,9 @@ async def send_message(conn: Connection, payload: MessagePayload) -> None:
     room_name = f"chat:{payload.room_id}"
 
     if room_name not in conn.rooms:
-        await conn.emit("__error__", {"code": "PERMISSION_ERROR", "message": "Join the room first"})
+        await conn.emit(
+            "__error__", {"code": "PERMISSION_ERROR", "message": "Join the room first"}
+        )
         return
 
     await socket.rooms.broadcast(
@@ -197,7 +212,9 @@ async def leave_room(conn: Connection, payload: LeavePayload) -> None:
 async def on_connect(conn: Connection) -> None:
     """Welcome new connections and add them to the global lobby."""
     await socket.rooms.join(conn, "lobby")
-    await conn.emit("welcome", {"conn_id": conn.id, "message": "Connected to chat server"})
+    await conn.emit(
+        "welcome", {"conn_id": conn.id, "message": "Connected to chat server"}
+    )
     logger.info("New connection: %s", conn.id)
 
 

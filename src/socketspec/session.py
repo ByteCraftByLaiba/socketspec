@@ -113,19 +113,26 @@ class SessionManager:
         try:
             while True:
                 await asyncio.sleep(self._config.heartbeat_interval)
-                await self._check_timeouts(conn)
+
+                # Check timeouts — returns True if conn.disconnect() was called.
+                if await self._check_timeouts(conn):
+                    return
                 await self._check_token_expiry(conn)
 
-                # Send ping, then immediately clear the pong event so that any
-                # pong arriving during the next sleep window is not silently
-                # consumed before we start waiting for it.
-                await conn.emit("__ping__", {})
+                # Clear the pong event BEFORE emitting the ping so that a
+                # fast pong (e.g. on localhost) arriving before the next line
+                # is never silently dropped.
                 pong_event = self._pong_events.get(conn.id)
                 if pong_event is not None:
                     pong_event.clear()
+
+                await conn.emit("__ping__", {})
+
+                if pong_event is not None:
                     try:
+                        # Plain wait_for — no asyncio.shield() which leaks tasks.
                         await asyncio.wait_for(
-                            asyncio.shield(pong_event.wait()),
+                            pong_event.wait(),
                             timeout=self._config.heartbeat_timeout,
                         )
                     except asyncio.TimeoutError:
@@ -140,7 +147,11 @@ class SessionManager:
         except asyncio.CancelledError:
             raise
 
-    async def _check_timeouts(self, conn: Connection) -> None:
+    async def _check_timeouts(self, conn: Connection) -> bool:
+        """Check max-duration and idle timeouts.
+
+        Returns True if conn.disconnect() was triggered.
+        """
         now = datetime.now(timezone.utc)
         if self._config.max_duration > 0:
             max_end = conn.session.started_at + timedelta(
@@ -153,12 +164,10 @@ class SessionManager:
                     {"reason": "max_duration"},
                 )
                 await conn.disconnect("max_duration")
-                return
+                return True
 
         if self._config.idle_timeout > 0:
-            idle_limit = conn.last_active + timedelta(
-                seconds=self._config.idle_timeout
-            )
+            idle_limit = conn.last_active + timedelta(seconds=self._config.idle_timeout)
             if now >= idle_limit:
                 logger.info("Connection %s idle timeout exceeded", conn.id)
                 await conn.emit(
@@ -166,6 +175,9 @@ class SessionManager:
                     {"reason": "idle_timeout"},
                 )
                 await conn.disconnect("idle_timeout")
+                return True
+
+        return False
 
     async def _check_token_expiry(self, conn: Connection) -> None:
         token_expires_at = conn.identity.token_expires_at

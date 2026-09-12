@@ -54,9 +54,19 @@ site/
 .DS_Store
 Thumbs.db
 
-# Project-specific
+# Project-specific internal files & agent artifacts — never commit
 .context/*.lock
 .context/**/*.lock
+.agents/
+.gemini/
+*.internal.md
+audit_report.md
+third_party_audit_prompt.md
+implementation_plan.md
+walkthrough.md
+session_status.md
+task.md
+examples/test_harness/
 
 # Secrets — never commit these
 .env

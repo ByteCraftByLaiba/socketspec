@@ -114,8 +114,15 @@ class RoomManager:
         await self._backend.add_to_room(conn.id, room)
         conn.rooms.add(room)
         logger.info("Connection %s joined room %s", conn.id, room)
-        for hook in self._join_hooks:
-            await hook(conn, room)
+        try:
+            for hook in self._join_hooks:
+                await hook(conn, room)
+        except Exception:
+            # Roll back both the backend and the local set so state stays
+            # consistent even if a hook raises partway through.
+            await self._backend.remove_from_room(conn.id, room)
+            conn.rooms.discard(room)
+            raise
 
     async def leave(self, conn: Connection, room: RoomName) -> None:
         """Remove a connection from a room.
@@ -133,6 +140,8 @@ class RoomManager:
         room: RoomName,
         event: EventName,
         payload: PayloadDict | BaseModel,
+        *,
+        exclude: set[ConnectionId] | None = None,
     ) -> None:
         """Broadcast an event to all members of a room in chunks.
 
@@ -140,11 +149,15 @@ class RoomManager:
             room: Room name to broadcast to.
             event: Event name for the wire envelope.
             payload: JSON-serializable payload or Pydantic model.
+            exclude: Optional set of connection IDs to skip.
         """
         member_ids = await self._backend.get_room_members(room)
         if not member_ids:
             return
-        for chunk in self._chunks(member_ids, BROADCAST_CHUNK_SIZE):
+        targets = (
+            member_ids if not exclude else [m for m in member_ids if m not in exclude]
+        )
+        for chunk in self._chunks(targets, BROADCAST_CHUNK_SIZE):
             await asyncio.gather(
                 *[self._safe_send(conn_id, event, payload) for conn_id in chunk]
             )
@@ -178,13 +191,12 @@ class RoomManager:
 
     async def members(self, room: RoomName) -> list[Connection]:
         """Return live connections currently in a room."""
-        member_ids = await self._backend.get_room_members(room)
-        connections: list[Connection] = []
-        for conn_id in member_ids:
-            conn = await self._manager.get(conn_id)
-            if conn is not None:
-                connections.append(conn)
-        return connections
+        member_ids = set(await self._backend.get_room_members(room))
+        if not member_ids:
+            return []
+        # Single lock acquisition via all() instead of one per member.
+        all_conns = await self._manager.all()
+        return [c for c in all_conns if c.id in member_ids]
 
     async def _safe_send(
         self,

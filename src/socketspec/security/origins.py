@@ -37,6 +37,18 @@ class OriginValidator:
 
         Returns:
             True if the origin is allowed, False otherwise.
+
+        Note:
+            Comparison is exact-match (after lower-casing the incoming value).
+            The following are **not** normalised automatically:
+
+            - Default ports: ``http://example.com:80`` and
+              ``http://example.com`` are treated as different origins.
+            - Trailing slashes: ``http://example.com/`` ≠
+              ``http://example.com``.
+
+            Browsers send normalised origins per RFC 6454, so these edge
+            cases will not occur in practice with standard clients.
         """
         if self._allow_all:
             return True

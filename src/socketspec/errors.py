@@ -20,32 +20,36 @@ Does NOT own any runtime logic or error formatting.
 
 from __future__ import annotations
 
-RESERVED_EVENTS: frozenset[str] = frozenset({
-    "__connect__",
-    "__disconnect__",
-    "__error__",
-    "__ping__",
-    "__pong__",
-    "__auth_expiring__",
-    "__session_expiring__",
-    "__idle_warning__",
-    "__server_shutdown__",
-    "__refresh_auth__",
-})
+RESERVED_EVENTS: frozenset[str] = frozenset(
+    {
+        "__connect__",
+        "__disconnect__",
+        "__error__",
+        "__ping__",
+        "__pong__",
+        "__auth_expiring__",
+        "__session_expiring__",
+        "__idle_warning__",
+        "__server_shutdown__",
+        "__refresh_auth__",
+    }
+)
 
-ERROR_CODES: frozenset[str] = frozenset({
-    "AUTH_ERROR",
-    "AUTH_EXPIRED",
-    "HANDLER_ERROR",
-    "IDLE_TIMEOUT",
-    "PAYLOAD_TOO_LARGE",
-    "PERMISSION_ERROR",
-    "RATE_LIMIT_ERROR",
-    "ROOM_NOT_FOUND",
-    "SESSION_EXPIRED",
-    "UNKNOWN_EVENT",
-    "VALIDATION_ERROR",
-})
+ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "AUTH_ERROR",
+        "AUTH_EXPIRED",
+        "HANDLER_ERROR",
+        "IDLE_TIMEOUT",
+        "PAYLOAD_TOO_LARGE",
+        "PERMISSION_ERROR",
+        "RATE_LIMIT_ERROR",
+        "ROOM_NOT_FOUND",
+        "SESSION_EXPIRED",
+        "UNKNOWN_EVENT",
+        "VALIDATION_ERROR",
+    }
+)
 
 
 class SocketSpecError(Exception):

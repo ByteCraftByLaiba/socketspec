@@ -20,6 +20,7 @@ or token refresh handling beyond returning token expiry metadata.
 
 from __future__ import annotations
 
+import hmac
 import logging
 from datetime import datetime, timezone
 from typing import Protocol, runtime_checkable
@@ -100,9 +101,7 @@ class JWTAuth:
 
         scopes_raw = payload.get("scopes", [])
         scopes = (
-            [str(scope) for scope in scopes_raw]
-            if isinstance(scopes_raw, list)
-            else []
+            [str(scope) for scope in scopes_raw] if isinstance(scopes_raw, list) else []
         )
 
         token_expires_at: datetime | None = None
@@ -155,6 +154,6 @@ class APIKeyAuth:
         key = normalized_headers.get(self._header) or query_params.get(
             QUERY_API_KEY_PARAM
         )
-        if key == self._api_key:
+        if key is not None and hmac.compare_digest(key, self._api_key):
             return Identity()
         return None

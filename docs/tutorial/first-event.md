@@ -66,15 +66,15 @@ async def handler(conn: Connection, payload: YourModel) -> None:
 
 1. Start the server: `uvicorn main:app --reload`
 2. Open http://localhost:8000/socket-docs
-3. Click **Connect** — the status bar shows 🟢 Connected
+3. Click **Connect** — the status bar shows "Connected"
 4. Find the **echo** card under the **demo** tag group
 5. Click it to expand — you'll see the payload schema table:
 
 | Name | Type   | Required | Description |
 |------|--------|----------|-------------|
-| echo | string | ✓        |             |
+| echo | string | Yes      |             |
 
-6. Click **Try it out**, set `{"echo": "hello world"}`, click **▶ Send Event**
+6. Click **Try it out**, set `{"echo": "hello world"}`, click **Send Event**
 7. The response `{"event": "echo_response", ...}` appears inline
 
 ---

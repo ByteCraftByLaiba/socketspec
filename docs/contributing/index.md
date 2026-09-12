@@ -20,7 +20,7 @@ This page is the entry point — from here you can find everything you need.
 
 ## Before You Start
 
-All contributors must sign the [Contributor License Agreement (CLA)](../../CLA.md)
+All contributors must sign the Contributor License Agreement (CLA)
 before their first PR is merged. The CLA bot will prompt you automatically when
 you open a PR — just follow the comment instructions.
 
@@ -65,7 +65,7 @@ pytest tests/ --cov=socketspec --cov-fail-under=90 -v
 
 ## Coding Standards
 
-Every file in `src/socketspec/` must follow [CODING_STANDARDS.md](../../.context/CODING_STANDARDS.md).
+Every file in `src/socketspec/` must follow the project coding standards.
 The key rules CI enforces:
 
 - **Copyright header** — first thing in every `.py` file, no exceptions

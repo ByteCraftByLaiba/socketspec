@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 from typing import Any
 
@@ -39,6 +40,9 @@ _QUEUE_SENTINEL: object = object()
 OrderedQueueItem = tuple[EventDefinition, Any] | object
 
 
+OnErrorCallback = Callable[[Connection, Exception], Awaitable[None]]
+
+
 class EventRouter:
     """Dispatches validated events to the correct handler."""
 
@@ -46,10 +50,13 @@ class EventRouter:
         self,
         registry: EventRegistry,
         di_resolver: DependencyResolver,
+        on_error_callback: OnErrorCallback | None = None,
     ) -> None:
         self._registry = registry
         self._di_resolver = di_resolver
         self._queues: dict[ConnectionId, asyncio.Queue[OrderedQueueItem]] = {}
+        self._tasks: dict[ConnectionId, set[asyncio.Task[None]]] = {}
+        self._on_error_callback = on_error_callback
 
     async def dispatch(
         self,
@@ -82,14 +89,22 @@ class EventRouter:
             await self._dispatch_ordered(conn, definition, validated)
             return
 
-        asyncio.create_task(self._run_handler(conn, definition, validated))
+        task = asyncio.create_task(self._run_handler(conn, definition, validated))
+        # Track so cleanup() can cancel if the connection drops mid-flight.
+        self._tasks.setdefault(conn.id, set()).add(task)
+        task.add_done_callback(lambda t: self._tasks.get(conn.id, set()).discard(t))
 
     async def cleanup(self, conn_id: ConnectionId) -> None:
-        """Remove per-connection ordered queue state on disconnect.
+        """Cancel in-flight handler tasks and drain ordered queue on disconnect.
 
         Args:
             conn_id: The disconnected connection id.
         """
+        # Cancel any in-flight unordered handler tasks.
+        for task in self._tasks.pop(conn_id, set()):
+            task.cancel()
+
+        # Signal the ordered queue worker to stop.
         queue = self._queues.pop(conn_id, None)
         if queue is not None:
             await queue.put(_QUEUE_SENTINEL)
@@ -146,6 +161,11 @@ class EventRouter:
                 definition.name,
                 str(exc),
             )
+            if self._on_error_callback is not None:
+                try:
+                    await self._on_error_callback(conn, exc)
+                except Exception:
+                    logger.exception("Error lifecycle hook raised an exception")
         finally:
             await stack.aclose()
 
@@ -155,13 +175,23 @@ class EventRouter:
         definition: EventDefinition,
         payload: BaseModel | PayloadDict,
     ) -> None:
+        # setdefault is atomic within the event loop — no race between the
+        # check and the insert that could spawn duplicate _process_queue tasks.
         if conn.id not in self._queues:
-            self._queues[conn.id] = asyncio.Queue()
-            asyncio.create_task(self._process_queue(conn))
+            queue: asyncio.Queue[OrderedQueueItem] = asyncio.Queue()
+            self._queues[conn.id] = queue
+            task = asyncio.create_task(self._process_queue(conn, queue))
+            self._tasks.setdefault(conn.id, set()).add(task)
+            task.add_done_callback(lambda t: self._tasks.get(conn.id, set()).discard(t))
         await self._queues[conn.id].put((definition, payload))
 
-    async def _process_queue(self, conn: Connection) -> None:
-        queue = self._queues[conn.id]
+    async def _process_queue(
+        self,
+        conn: Connection,
+        queue: asyncio.Queue[OrderedQueueItem],
+    ) -> None:
+        # Accepts the queue as a parameter to avoid KeyError if cleanup()
+        # already popped it from self._queues before this task starts.
         while True:
             item = await queue.get()
             if item is _QUEUE_SENTINEL:

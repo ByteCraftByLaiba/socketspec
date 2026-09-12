@@ -1,9 +1,10 @@
 site_name: SocketSpec
-site_description: FastAPI-style WebSocket framework with built-in docs and testing
+site_description: A type-safe, decorator-driven WebSocket framework for Python with built-in interactive documentation, Pydantic validation, and first-class testing support.
 site_url: https://ByteCraftByLaiba.github.io/socketspec/
 repo_url: https://github.com/ByteCraftByLaiba/socketspec
 repo_name: ByteCraftByLaiba/socketspec
 edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2025 Laiba Shahab. Licensed under Apache 2.0.
 
 theme:
   name: material
@@ -11,32 +12,39 @@ theme:
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: indigo
-      accent: indigo
+      accent: deep purple
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: indigo
-      accent: indigo
+      accent: deep purple
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.indexes
+    - navigation.footer
     - search.highlight
+    - search.suggest
     - search.share
     - content.code.copy
     - content.code.annotate
+    - content.tabs.link
     - toc.follow
   font:
     text: Inter
     code: JetBrains Mono
   logo: assets/logo.svg
   favicon: assets/logo.svg
+  icon:
+    repo: fontawesome/brands/github
 
 plugins:
   - search
@@ -50,45 +58,74 @@ plugins:
             show_root_toc_entry: false
             heading_level: 2
             docstring_style: google
+            members_order: source
+            show_signature_annotations: true
 
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.tabbed:
       alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.mark
   - attr_list
   - md_in_html
+  - def_list
+  - footnotes
   - tables
   - toc:
       permalink: true
+      toc_depth: 3
 
 nav:
   - Home: index.md
-  - Quickstart: quickstart.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quickstart: getting-started/quickstart.md
+  - Concepts:
+    - Architecture: concepts/architecture.md
+    - Wire Protocol: concepts/wire-protocol.md
   - Tutorial:
-    - First Event: tutorial/first-event.md
+    - Your First Event: tutorial/first-event.md
     - Payload Validation: tutorial/payload-validation.md
-    - Rooms: tutorial/rooms.md
+    - Rooms and Broadcasting: tutorial/rooms.md
   - How-to Guides:
-    - FastAPI: how-to/fastapi.md
+    - Interactive Documentation: how-to/interactive-docs.md
+    - FastAPI Integration: how-to/fastapi.md
+    - Authentication and Security: how-to/security.md
+    - Middleware: how-to/middleware.md
+    - Dependency Injection: how-to/dependency-injection.md
     - Testing: how-to/testing.md
   - API Reference:
     - SocketApp: reference/socketapp.md
     - Connection: reference/connection.md
+    - Security: reference/security.md
+    - Error Codes: reference/errors.md
   - Contributing:
     - Overview: contributing/index.md
     - Writing a New Adapter: contributing/new-adapter.md
+  - Changelog: changelog.md
 
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/ByteCraftByLaiba/socketspec
+      name: SocketSpec on GitHub
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/socketspec/
+      name: SocketSpec on PyPI
   version:
     provider: mike

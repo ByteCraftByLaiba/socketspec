@@ -19,6 +19,7 @@ Owns docs HTTP endpoints. Does NOT own WebSocket transport or event routing.
 
 from __future__ import annotations
 
+import hmac
 import logging
 import sys
 from importlib.resources import files
@@ -104,10 +105,11 @@ def _check_docs_access(request: object, access_token: str | None) -> None:
     authorization = request.headers.get("authorization", "")
     if authorization.lower().startswith(BEARER_PREFIX):
         provided = authorization[len(BEARER_PREFIX) :].strip()
-        if provided == access_token:
+        if hmac.compare_digest(provided, access_token):
             return
 
-    if request.query_params.get("token") == access_token:
+    token_param = request.query_params.get("token", "")
+    if token_param and hmac.compare_digest(token_param, access_token):
         return
 
     raise HTTPException(status_code=401, detail="Docs access token required")

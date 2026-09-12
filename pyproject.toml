@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "socketspec"
-version = "0.1.2"
+version = "0.1.3"
 description = "FastAPI-style WebSocket framework with built-in docs and testing"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -25,7 +25,6 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "websockets>=12.0",
     "pydantic>=2.0",
     "anyio>=4.0",
     "PyJWT>=2.8",
