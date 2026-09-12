@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import anyio
 import pytest
 
@@ -53,7 +55,7 @@ async def test_broadcast_does_not_reach_non_member() -> None:
         res = await member.receive("msg")
         assert res["text"] == "secret"
 
-        with pytest.raises(TimeoutError):
+        with pytest.raises((TimeoutError, asyncio.TimeoutError)):
             await outsider.receive("msg", timeout=0.2)
 
 
@@ -77,7 +79,7 @@ async def test_leave_room_stops_receiving_broadcast() -> None:
         await anyio.sleep(0.02)
 
         await app.rooms.broadcast("lobby", "msg", {"text": "hi"})
-        with pytest.raises(TimeoutError):
+        with pytest.raises((TimeoutError, asyncio.TimeoutError)):
             await conn.receive("msg", timeout=0.2)
 
 
@@ -117,7 +119,7 @@ async def test_broadcast_except_skips_sender() -> None:
         res = await receiver.receive("msg")
         assert res["text"] == "from-sender"
 
-        with pytest.raises(TimeoutError):
+        with pytest.raises((TimeoutError, asyncio.TimeoutError)):
             await sender.receive("msg", timeout=0.2)
 
 

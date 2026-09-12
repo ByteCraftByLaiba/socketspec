@@ -110,7 +110,7 @@ class TestConnection:
                     self._raw_socket.outgoing.get(),
                     timeout=remaining,
                 )
-            except TimeoutError as exc:
+            except (TimeoutError, asyncio.TimeoutError) as exc:
                 raise TimeoutError(f"Timed out waiting for event '{event}'") from exc
 
             if message.get("event") == event:

@@ -166,7 +166,7 @@ async def test_broadcast_does_not_reach_non_members() -> None:
         result = await member.receive("secret")
         assert result["data"] == 1
         # outsider queue must be empty — wait_for should time out
-        with pytest.raises(TimeoutError):
+        with pytest.raises((TimeoutError, asyncio.TimeoutError)):
             await outsider.receive("secret", timeout=0.2)
 
 
@@ -191,7 +191,7 @@ async def test_broadcast_excludes_sender() -> None:
         )
         result = await recv.receive("msg")
         assert result["text"] == "hi"
-        with pytest.raises(TimeoutError):
+        with pytest.raises((TimeoutError, asyncio.TimeoutError)):
             await sender.receive("msg", timeout=0.2)
 
 
