@@ -5,7 +5,7 @@
 [![CI](https://github.com/ByteCraftByLaiba/socketspec/actions/workflows/ci.yml/badge.svg)](https://github.com/ByteCraftByLaiba/socketspec/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/socketspec)](https://pypi.org/project/socketspec/)
 [![Python](https://img.shields.io/pypi/pyversions/socketspec)](https://pypi.org/project/socketspec/)
-[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25-brightgreen)](https://github.com/ByteCraftByLaiba/socketspec)
+[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A595%25-brightgreen)](https://github.com/ByteCraftByLaiba/socketspec)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 ---
@@ -23,7 +23,7 @@ pip install socketspec[fastapi]
 ```python
 from fastapi import FastAPI
 from pydantic import BaseModel
-from socketspec import SocketApp
+from socketspec import Broadcasts, Emits, SocketApp
 from socketspec.adapters.fastapi import mount
 
 socket = SocketApp(docs=True)
@@ -65,8 +65,6 @@ uvicorn main:app --reload
 
 Open **`/socket-docs`** in your browser after starting the server.
 
-<!-- screenshot: add after first live demo -->
-
 - Click an event card to expand its schema
 - Hit **Try it out** to send a live WebSocket message
 - See the server response appear inline, without leaving the browser
@@ -78,13 +76,13 @@ Open **`/socket-docs`** in your browser after starting the server.
 
 | Feature | python-socketio | channels (Django) | SocketSpec |
 |---|---|---|---|
-| FastAPI-native | ✗ | ✗ | ✅ |
-| Pydantic payload validation | ✗ | ✗ | ✅ |
-| Built-in interactive docs | ✗ | ✗ | ✅ |
-| `TestClient` for unit tests | ✗ | partial | ✅ |
-| Room guards / permissions | manual | manual | ✅ |
-| Dependency injection (`Depends`) | ✗ | ✗ | ✅ |
-| Type-safe (`mypy --strict`) | ✗ | ✗ | ✅ |
+| FastAPI-native | No | No | Yes |
+| Pydantic payload validation | No | No | Yes |
+| Built-in interactive docs | No | No | Yes |
+| `TestClient` for unit tests | No | Partial | Yes |
+| Room guards / permissions | Manual | Manual | Yes |
+| Dependency injection (`Depends`) | No | No | Yes |
+| Type-safe (`mypy --strict`) | No | No | Yes |
 
 ---
 

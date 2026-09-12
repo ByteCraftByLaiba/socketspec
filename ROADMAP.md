@@ -5,7 +5,7 @@ breaking the public API established in the previous phase.
 
 ---
 
-## ✅ v0.1.0 — Foundation (Current)
+## v0.1.3 — Core Framework (Current Release)
 
 The core framework. Everything a FastAPI developer needs to build a
 production WebSocket API.
@@ -23,7 +23,7 @@ production WebSocket API.
 
 ---
 
-## 🔜 v0.2.0 — Adapters
+## v0.2.0 — Adapters
 
 Bring SocketSpec to all major Python async frameworks.
 
@@ -35,7 +35,7 @@ Bring SocketSpec to all major Python async frameworks.
 
 ---
 
-## 🔜 v0.3.0 — Scale
+## v0.3.0 — Scale
 
 Production-grade horizontal scaling.
 
@@ -48,7 +48,7 @@ Production-grade horizontal scaling.
 
 ---
 
-## 🔜 v0.4.0 — Observability
+## v0.4.0 — Observability
 
 Production visibility without manual instrumentation.
 
